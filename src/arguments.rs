@@ -18,7 +18,7 @@ pub enum Commands {
         ///Writes the file as a pretty-printed json
         pretty: bool,
         #[clap(value_parser, short, long)]
-        ///The file to export the hotkeys
+        ///The file to export the hotkeys (JSON)
         file: String
     },
     ///Import hotkeys
