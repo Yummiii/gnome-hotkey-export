@@ -39,11 +39,16 @@ fn export(custom_only: bool, pretty: bool, file: String) {
         for key in &dir.keys {
             if key != "custom-keybindings" {
                 if !custom_only {
-                    binds.push(Keybind {
-                        name: key.to_owned(),
-                        dir: dir.dir.clone(),
-                        binding: dir.read_key(key).unwrap(),
-                    });
+                    let binding = dir.read_key(key).unwrap();
+                    let name = key.to_owned();
+
+                    if binding != "" && name != "" {
+                        binds.push(Keybind {
+                            dir: dir.dir.clone(),
+                            binding,
+                            name,
+                        });
+                    }
                 }
             } else {
                 let custom_dirs = dir.read_key(key).unwrap();
