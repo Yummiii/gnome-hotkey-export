@@ -2,6 +2,13 @@
 name = "ghe"
 version = "0.1.0"
 edition = "2021"
+license-file = "LICENSE"
+description = "A simple tool to import and export gnome hotkeys"
+homepage = "https://github.com/Yummiii/gnome-hotkey-export"
+repository = "https://github.com/Yummiii/gnome-hotkey-export"
+readme = "README.md"
+keywords = ["ghe", "gnome", "hotkeys", "export", "import"]
+categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
