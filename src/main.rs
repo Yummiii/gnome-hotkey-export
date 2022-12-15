@@ -85,19 +85,32 @@ fn import(file: String) {
     }
 
     let custom_dirs = read("/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings");
-    let mut custom_dirs: Vec<String> = from_str(&custom_dirs.replace("'", "\"")).unwrap_or(vec![]);
+    let custom_dirs: Vec<String> = from_str(&custom_dirs.replace("'", "\"")).unwrap_or(vec![]);
+    let mut i = custom_dirs.len() + 1;
 
     for custom in binds.custom {
-        let dir = format!(
+        let mut dir = format!(
             "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom{}/",
-            (custom_dirs.len())
+            i
         );
+
+        let same = custom_dirs
+            .iter()
+            .filter(|x| {
+                let dir = open(x).unwrap();
+                dir.read_key("binding").unwrap() == custom.binding
+            })
+            .collect::<Vec<&String>>();
+
+        if let Some(same) = same.into_iter().next() {
+            dir = same.to_owned();
+        }
 
         write(&format!("{}binding", dir), &custom.binding);
         write(&format!("{}command", dir), &custom.command);
         write(&format!("{}name", dir), &custom.name);
 
-        custom_dirs.push(dir);
+        i += 1;
     }
 
     write(
