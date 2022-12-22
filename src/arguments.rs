@@ -15,6 +15,9 @@ pub enum Commands {
         ///Only export the custom keybindings
         custom: bool,
         #[clap(value_parser, short, long, default_value_t = false)]
+        ///Exports installed extensions and their settings
+        extensions: bool,
+        #[clap(value_parser, short, long, default_value_t = false)]
         ///Writes the file as a pretty-printed json
         pretty: bool,
         #[clap(value_parser, short, long)]
@@ -26,6 +29,5 @@ pub enum Commands {
         #[clap(value_parser, short, long)]
         ///File to import the hotkeys
         file: String
-    },
-    TEST
+    }
 }

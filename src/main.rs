@@ -5,29 +5,37 @@ use crate::{
 use arguments::{Args, Commands};
 use clap::Parser;
 use dconf::open;
-use extensions::get_extensions;
+use extensions::{get_extensions, Extension, install_extensions};
+use serde::{Deserialize, Serialize};
 use serde_json::{from_str, to_string, to_string_pretty};
 use std::fs;
 
 mod arguments;
 mod dconf;
-mod keybindings;
 mod extensions;
+mod keybindings;
 
-fn main() {
+#[derive(Debug, Serialize, Deserialize)]
+struct GheExport {
+    pub keybindings: Option<Keybindings>,
+    pub extensions: Vec<Extension>,
+}
+
+#[tokio::main]
+async fn main() {
     let args = Args::parse();
     match args.command {
         Commands::EXPORT {
             custom,
             pretty,
             file,
-        } => export(custom, pretty, file),
-        Commands::IMPORT { file } => import(file),
-        Commands::TEST => get_extensions()
+            extensions,
+        } => export(custom, pretty, file, extensions),
+        Commands::IMPORT { file } => import(file).await,
     };
 }
 
-fn export(custom_only: bool, pretty: bool, file: String) {
+fn export(custom_only: bool, pretty: bool, file: String, extensions: bool) {
     let dirs = vec![
         "/org/gnome/shell/keybindings/",
         "/org/gnome/settings-daemon/plugins/media-keys/",
@@ -70,54 +78,64 @@ fn export(custom_only: bool, pretty: bool, file: String) {
         }
     }
 
-    let kbnds = Keybindings { binds, custom };
+    let exts = if extensions { get_extensions() } else { vec![] };
+
+    let export = GheExport {
+        keybindings: Some(Keybindings { binds, custom }),
+        extensions: exts,
+    };
+
     let json = if pretty {
-        to_string_pretty(&kbnds).unwrap()
+        to_string_pretty(&export).unwrap()
     } else {
-        to_string(&kbnds).unwrap()
+        to_string(&export).unwrap()
     };
 
     fs::write(file, json).unwrap();
 }
 
-fn import(file: String) {
-    let binds: Keybindings = from_str(&fs::read_to_string(file).unwrap()).unwrap();
-
-    for bind in &binds.binds {
-        write(&format!("{}{}", bind.dir, bind.name), &bind.binding);
-    }
-
-    let custom_dirs = read("/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings");
-    let custom_dirs: Vec<String> = from_str(&custom_dirs.replace("'", "\"")).unwrap_or(vec![]);
-    let mut i = custom_dirs.len() + 1;
-
-    for custom in binds.custom {
-        let mut dir = format!(
-            "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom{}/",
-            i
-        );
-
-        let same = custom_dirs
-            .iter()
-            .filter(|x| {
-                let dir = open(x).unwrap();
-                dir.read_key("binding").unwrap() == custom.binding
-            })
-            .collect::<Vec<&String>>();
-
-        if let Some(same) = same.into_iter().next() {
-            dir = same.to_owned();
+async fn import(file: String) {
+    let data: GheExport = from_str(&fs::read_to_string(file).unwrap()).unwrap();
+    
+    if let Some(binds) = data.keybindings {
+        for bind in &binds.binds {
+            write(&format!("{}{}", bind.dir, bind.name), &bind.binding);
         }
-
-        write(&format!("{}binding", dir), &custom.binding);
-        write(&format!("{}command", dir), &custom.command);
-        write(&format!("{}name", dir), &custom.name);
-
-        i += 1;
+    
+        let custom_dirs = read("/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings");
+        let custom_dirs: Vec<String> = from_str(&custom_dirs.replace("'", "\"")).unwrap_or(vec![]);
+        let mut i = custom_dirs.len() + 1;
+    
+        for custom in binds.custom {
+            let mut dir = format!(
+                "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom{}/",
+                i
+            );
+    
+            let same = custom_dirs
+                .iter()
+                .filter(|x| {
+                    let dir = open(x).unwrap();
+                    dir.read_key("binding").unwrap() == custom.binding
+                })
+                .collect::<Vec<&String>>();
+    
+            if let Some(same) = same.into_iter().next() {
+                dir = same.to_owned();
+            }
+    
+            write(&format!("{}binding", dir), &custom.binding);
+            write(&format!("{}command", dir), &custom.command);
+            write(&format!("{}name", dir), &custom.name);
+    
+            i += 1;
+        }
+    
+        write(
+            "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings",
+            &to_string(&custom_dirs).unwrap().replace("\"", "'").trim(),
+        );
     }
 
-    write(
-        "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings",
-        &to_string(&custom_dirs).unwrap().replace("\"", "'").trim(),
-    );
+    install_extensions(data.extensions).await;
 }
