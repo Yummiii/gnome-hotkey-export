@@ -27,4 +27,5 @@ pub enum Commands {
         ///File to import the hotkeys
         file: String
     },
+    TEST
 }

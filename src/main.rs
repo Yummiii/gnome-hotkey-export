@@ -5,12 +5,14 @@ use crate::{
 use arguments::{Args, Commands};
 use clap::Parser;
 use dconf::open;
+use extensions::get_extensions;
 use serde_json::{from_str, to_string, to_string_pretty};
 use std::fs;
 
 mod arguments;
 mod dconf;
 mod keybindings;
+mod extensions;
 
 fn main() {
     let args = Args::parse();
@@ -21,6 +23,7 @@ fn main() {
             file,
         } => export(custom, pretty, file),
         Commands::IMPORT { file } => import(file),
+        Commands::TEST => get_extensions()
     };
 }
 
