@@ -56,45 +56,49 @@ pub async fn install_extensions(exts: Vec<Extension>) {
     .unwrap();
 
     for ext in exts {
-        let name = ext.uuid.split("@").next().unwrap();
-        let url = format!(
-            "https://extensions.gnome.org/extension-data/{}.v{}.shell-extension.zip",
-            ext.uuid.replace("@", ""),
-            ext.version
-        );
-
-        let resp = reqwest::get(url).await.unwrap();
-        let file = format!(
-            "{}/.local/share/gnome-shell/extensions/{}.zip",
-            env!("HOME"),
-            ext.uuid
-        );
-        fs::write(&file, resp.bytes().await.unwrap()).unwrap();
-
-        cmd!(("gnome-extensions") install (file))
-            .spawn()
-            .expect("Error executing gnome-extensions command");
-
-        cmd!(busctl ("--user") 
-            call ("org.gnome.Shell.Extensions") 
-            ("/org/gnome/Shell/Extensions") 
-            ("org.gnome.Shell.Extensions")
-            InstallRemoteExtension s (ext.uuid))
-        .output()
-        .expect("Error executing busctl command");
-
-        if let Some(configs) = ext.configs {
-            for (key, value) in configs {
-                dconf::write(
-                    &format!("/org/gnome/shell/extensions/{}/{}", name, key),
-                    &value,
-                );
+        let info = cmd!(("gnome-extensions") info (ext.uuid)).output().unwrap();
+        if info.status.code() == Some(2) {
+            let name = ext.uuid.split("@").next().unwrap();
+            let url = format!(
+                "https://extensions.gnome.org/extension-data/{}.v{}.shell-extension.zip",
+                ext.uuid.replace("@", ""),
+                ext.version
+            );
+    
+            let resp = reqwest::get(url).await.unwrap();
+            let file = format!(
+                "{}/.local/share/gnome-shell/extensions/{}.zip",
+                env!("HOME"),
+                ext.uuid
+            );
+            fs::write(&file, resp.bytes().await.unwrap()).unwrap();
+    
+            cmd!(("gnome-extensions") install (file))
+                .spawn()
+                .expect("Error executing gnome-extensions command");
+    
+            cmd!(busctl ("--user") 
+                call ("org.gnome.Shell.Extensions") 
+                ("/org/gnome/Shell/Extensions") 
+                ("org.gnome.Shell.Extensions")
+                InstallRemoteExtension s (ext.uuid))
+            .output()
+            .expect("Error executing busctl command");
+    
+            if let Some(configs) = ext.configs {
+                for (key, value) in configs {
+                    dconf::write(
+                        &format!("/org/gnome/shell/extensions/{}/{}", name, key),
+                        &value,
+                    );
+                }
             }
+    
+            cmd!(("gnome-extensions") enable (ext.uuid))
+                .spawn()
+                .expect("Error executing gnome-extensions command");
+            fs::remove_file(file).unwrap();
         }
 
-        cmd!(("gnome-extensions") enable (ext.uuid))
-            .spawn()
-            .expect("Error executing gnome-extensions command");
-        fs::remove_file(file).unwrap();
     }
 }
