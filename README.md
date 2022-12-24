@@ -3,12 +3,17 @@
 A simple tool to import and export gnome hotkeys
 
 ## Usage
-To export to a file
+To export just hotkeys to a file
 ```
-ghe export -f hotkeys.json
+ghe export -f export.json
 ``` 
+
+To export hotkeys and extensions to a file
+```
+ghe export -e -f export.json
+```
 
 To import from a file
 ```
-ghe import -f hotkeys.json
+ghe import -f export.json
 ```
