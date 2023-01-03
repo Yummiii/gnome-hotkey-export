@@ -117,7 +117,11 @@ async fn import(file: String) {
                 .iter()
                 .filter(|x| {
                     let dir = open(x).unwrap();
-                    dir.read_key("binding").unwrap() == custom.binding
+                    if let Ok(binding) = dir.read_key("binding") {
+                        binding == custom.binding
+                    } else {
+                        false
+                    }
                 })
                 .collect::<Vec<&String>>();
 
@@ -128,7 +132,9 @@ async fn import(file: String) {
             write(&format!("{}binding", dir), &custom.binding);
             write(&format!("{}command", dir), &custom.command);
             write(&format!("{}name", dir), &custom.name);
-            custom_dirs.push(dir);
+            if custom_dirs.iter().find(|x| x == &&dir).is_none() {
+                custom_dirs.push(dir);
+            }
             i += 1;
         }
 
