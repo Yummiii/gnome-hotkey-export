@@ -94,9 +94,9 @@ pub async fn install_extensions(exts: Vec<Extension>) {
                 }
             }
     
-            cmd!(("gnome-extensions") enable (ext.uuid))
-                .spawn()
-                .expect("Error executing gnome-extensions command");
+            // cmd!(("gnome-extensions") enable (ext.uuid))
+            //     .spawn()
+            //     .expect("Error executing gnome-extensions command");
             fs::remove_file(file).unwrap();
         }
 

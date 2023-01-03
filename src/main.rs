@@ -5,7 +5,7 @@ use crate::{
 use arguments::{Args, Commands};
 use clap::Parser;
 use dconf::open;
-use extensions::{get_extensions, Extension, install_extensions};
+use extensions::{get_extensions, install_extensions, Extension};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, to_string, to_string_pretty};
 use std::fs;
@@ -96,22 +96,23 @@ fn export(custom_only: bool, pretty: bool, file: String, extensions: bool) {
 
 async fn import(file: String) {
     let data: GheExport = from_str(&fs::read_to_string(file).unwrap()).unwrap();
-    
+
     if let Some(binds) = data.keybindings {
         for bind in &binds.binds {
             write(&format!("{}{}", bind.dir, bind.name), &bind.binding);
         }
-    
+
         let custom_dirs = read("/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings");
-        let custom_dirs: Vec<String> = from_str(&custom_dirs.replace("'", "\"")).unwrap_or(vec![]);
-        let mut i = custom_dirs.len() + 1;
-    
+        let mut custom_dirs: Vec<String> =
+            from_str(&custom_dirs.replace("'", "\"")).unwrap_or(vec![]);
+        let mut i = custom_dirs.len();
+
         for custom in binds.custom {
             let mut dir = format!(
                 "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom{}/",
                 i
             );
-    
+
             let same = custom_dirs
                 .iter()
                 .filter(|x| {
@@ -119,18 +120,18 @@ async fn import(file: String) {
                     dir.read_key("binding").unwrap() == custom.binding
                 })
                 .collect::<Vec<&String>>();
-    
+
             if let Some(same) = same.into_iter().next() {
                 dir = same.to_owned();
             }
-    
+
             write(&format!("{}binding", dir), &custom.binding);
             write(&format!("{}command", dir), &custom.command);
             write(&format!("{}name", dir), &custom.name);
-    
+            custom_dirs.push(dir);
             i += 1;
         }
-    
+
         write(
             "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings",
             &to_string(&custom_dirs).unwrap().replace("\"", "'").trim(),
