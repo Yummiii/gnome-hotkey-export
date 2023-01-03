@@ -2,6 +2,10 @@
 
 A simple tool to import and export gnome hotkeys
 
+## Installation
+```
+cargo install ghe
+```
 ## Usage
 To export just hotkeys to a file
 ```
