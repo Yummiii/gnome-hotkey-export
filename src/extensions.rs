@@ -12,6 +12,8 @@ use std::{
 pub struct Extension {
     pub uuid: String,
     pub version: i32,
+    #[serde(rename = "settings-schema")]
+    pub settings_schema: Option<String>,
     pub configs: Option<HashMap<String, String>>,
 }
 
@@ -25,8 +27,16 @@ pub fn get_extensions() -> Vec<Extension> {
     for ext in glob(&path).unwrap() {
         let mut ext: Extension = from_str(&fs::read_to_string(ext.unwrap()).unwrap()).unwrap();
 
-        let name = ext.uuid.split("@").next().unwrap();
-        let dir = open(&format!("/org/gnome/shell/extensions/{}/", name)).unwrap();
+        let dir = if let Some(schema) = &ext.settings_schema {
+            open(&format!(
+                "/org/gnome/shell/extensions/{}/",
+                schema.replace(".", "/")
+            ))
+            .unwrap()
+        } else {
+            let name = ext.uuid.split("@").next().unwrap();
+            open(&format!("/org/gnome/shell/extensions/{}/", name)).unwrap()
+        };
 
         let mut configs = HashMap::new();
         for key in &dir.keys {
@@ -64,7 +74,7 @@ pub async fn install_extensions(exts: Vec<Extension>) {
                 ext.uuid.replace("@", ""),
                 ext.version
             );
-    
+
             let resp = reqwest::get(url).await.unwrap();
             let file = format!(
                 "{}/.local/share/gnome-shell/extensions/{}.zip",
@@ -72,11 +82,11 @@ pub async fn install_extensions(exts: Vec<Extension>) {
                 ext.uuid
             );
             fs::write(&file, resp.bytes().await.unwrap()).unwrap();
-    
+
             cmd!(("gnome-extensions") install (file))
                 .spawn()
                 .expect("Error executing gnome-extensions command");
-    
+
             cmd!(busctl ("--user") 
                 call ("org.gnome.Shell.Extensions") 
                 ("/org/gnome/Shell/Extensions") 
@@ -84,21 +94,26 @@ pub async fn install_extensions(exts: Vec<Extension>) {
                 InstallRemoteExtension s (ext.uuid))
             .output()
             .expect("Error executing busctl command");
-    
+
             if let Some(configs) = ext.configs {
+                let dir = if let Some(schema) = &ext.settings_schema {
+                    format!("/org/gnome/shell/extensions/{}/", schema.replace(".", "/"))
+                } else {
+                    format!("/org/gnome/shell/extensions/{}/", name)
+                };
+
                 for (key, value) in configs {
                     dconf::write(
-                        &format!("/org/gnome/shell/extensions/{}/{}", name, key),
+                        &format!("{}{}", dir, key),
                         &value,
                     );
                 }
             }
-    
+
             // cmd!(("gnome-extensions") enable (ext.uuid))
             //     .spawn()
             //     .expect("Error executing gnome-extensions command");
             fs::remove_file(file).unwrap();
         }
-
     }
 }
