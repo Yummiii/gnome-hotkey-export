@@ -1,6 +1,6 @@
 # gnome-hotkey-export
 
-A simple tool to import and export gnome hotkeys and extensions
+A simple tool to import and export gnome hotkeys and extensions (this is probablly broken)
 
 ## Installation
 ```
